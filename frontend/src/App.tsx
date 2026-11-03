@@ -35,7 +35,7 @@ import type {
   Inquiry,
   WorkspaceSettings,
 } from "@/types";
-import { SCHOOL_NAME, AUTH_KEY } from "@/lib/constants";
+import { SCHOOL_NAME } from "@/lib/constants";
 import { downloadBlob } from "@/utils/helpers";
 import Campaigns from "@/pages/Campaigns";
 import Contacts from "@/pages/Contacts";
@@ -56,6 +56,7 @@ import MaintenanceBanner, {
   MAINTENANCE_MODE,
 } from "./layout/MaintenanceBanner";
 import ForgotPassword from "@/components/auth/ForgotPassword";
+import type { SchoolRole } from "@/types";
 
 // false = hides News + Gallery + Inquiries
 
@@ -77,13 +78,6 @@ function mapStudentToParentContact(row: Record<string, unknown>): Contact {
     fee_amount: Number(row.fee_amount ?? 0),
   };
 }
-
-type SchoolRole =
-  | "dean_of_studies"
-  | "headteacher"
-  | "teacher"
-  | "it"
-  | "unknown";
 
 function schoolRoleLabel(role: SchoolRole) {
   if (role === "dean_of_studies") return "Dean of Studies";
@@ -156,9 +150,8 @@ function AccessNotice({
 }
 
 function App() {
-  const [authed, setAuthed] = useState(
-    () => sessionStorage.getItem(AUTH_KEY) === "true",
-  );
+  const [authed, setAuthed] = useState(false);
+  const [authInitializing, setAuthInitializing] = useState(true);
   const [user, setUser] = useState<{
     id?: string;
     email?: string | null;
@@ -314,9 +307,16 @@ function App() {
     );
   }
 
-  async function saveCampaign(campaign: Omit<Campaign, 'id' | 'created_at'>, dispatch: { fingerprint: string; recipientIds: string[]; emailDispatchKey?: string }) {
-    if (!supabase) return notify('Service unavailable');
-    if (!(isDean || role === 'headteacher')) return notify('Unauthorized');
+  async function saveCampaign(
+    campaign: Omit<Campaign, "id" | "created_at">,
+    dispatch: {
+      fingerprint: string;
+      recipientIds: string[];
+      emailDispatchKey?: string;
+    },
+  ) {
+    if (!supabase) return notify("Service unavailable");
+    if (!(isDean || role === "headteacher")) return notify("Unauthorized");
     try {
       const { data: existing } = await supabase
         .from("sms_campaign_dispatches")
@@ -359,14 +359,21 @@ function App() {
             .eq("id", ledger.id);
         return notify("Failed to save broadcast");
       }
-      if (ledger) await supabase.from('sms_campaign_dispatches').update({ campaign_id: data.id }).eq('id', ledger.id);
+      if (ledger)
+        await supabase
+          .from("sms_campaign_dispatches")
+          .update({ campaign_id: data.id })
+          .eq("id", ledger.id);
       if (dispatch.emailDispatchKey) {
-        const { error: emailLinkError } = await supabase.rpc('link_email_dispatches_to_campaign', {
-          p_dispatch_key: dispatch.emailDispatchKey,
-          p_campaign_id: data.id,
-        });
+        const { error: emailLinkError } = await supabase.rpc(
+          "link_email_dispatches_to_campaign",
+          {
+            p_dispatch_key: dispatch.emailDispatchKey,
+            p_campaign_id: data.id,
+          },
+        );
         if (emailLinkError) {
-          console.error('Email campaign link failed:', emailLinkError.message);
+          console.error("Email campaign link failed:", emailLinkError.message);
         }
       }
       setCampaigns((prev) => [data as Campaign, ...prev]);
@@ -607,28 +614,131 @@ function App() {
 
   async function handleLogin(email: string, password: string) {
     if (!supabase) return "Service unavailable";
-    const resp = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    if (resp.error) return resp.error.message;
-    sessionStorage.setItem(AUTH_KEY, "true");
-    setAuthed(true);
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role, full_name")
-      .eq("id", resp.data.user.id)
-      .maybeSingle();
-    if (!profile) return "No school account";
-    setUser({
-      id: resp.data.user.id,
-      email: resp.data.user.email,
-      full_name: profile.full_name,
-      role: parseSchoolRole(profile.role),
-    });
-    navigate("/overview");
-    return null;
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) return error.message;
+      if (!data.user) return "Unable to verify your account";
+
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("role, full_name")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      const role = parseSchoolRole(profile?.role);
+
+      if (profileError || !profile || role === "unknown") {
+        await supabase.auth.signOut();
+        setUser(null);
+        setAuthed(false);
+        return "No valid school account found";
+      }
+
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        full_name: profile.full_name,
+        role,
+      });
+
+      setAuthed(true);
+      navigate("/overview");
+      return null;
+    } catch (error) {
+      console.error("Login failed:", error);
+
+      await supabase.auth.signOut();
+      setUser(null);
+      setAuthed(false);
+
+      return "Unable to sign in. Please try again.";
+    }
   }
+
+  async function handleLogout() {
+    if (supabase) {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error("Logout failed:", error);
+        return;
+      }
+    }
+
+    setAuthed(false);
+    setUser(null);
+    navigate("/");
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    async function restore() {
+      try {
+        if (!supabase) return;
+
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (!data.session?.user) {
+          if (active) {
+            setAuthed(false);
+            setUser(null);
+          }
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("users")
+          .select("role, full_name")
+          .eq("id", data.session.user.id)
+          .maybeSingle();
+
+        const role = parseSchoolRole(profile?.role);
+
+        if (profileError || !profile || role === "unknown") {
+          await supabase.auth.signOut();
+          if (active) {
+            setAuthed(false);
+            setUser(null);
+          }
+          return;
+        }
+
+        if (active) {
+          setUser({
+            id: data.session.user.id,
+            email: data.session.user.email,
+            full_name: profile.full_name,
+            role,
+          });
+          setAuthed(true);
+        }
+      } catch (error) {
+        console.error("Session restoration failed:", error);
+
+        if (active) {
+          setAuthed(false);
+          setUser(null);
+        }
+      } finally {
+        if (active) setAuthInitializing(false);
+      }
+    }
+
+    void restore();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   async function handleRequestReset(email: string) {
     if (!supabase) return "Service unavailable";
     const { error } = await supabase.auth.resetPasswordForEmail(
@@ -639,38 +749,9 @@ function App() {
     );
     return error ? error.message : null;
   }
-
-  function handleLogout() {
-    supabase?.auth.signOut();
-    sessionStorage.removeItem(AUTH_KEY);
-    setAuthed(false);
-    setUser(null);
-    navigate("/overview");
-  }
-
-  useEffect(() => {
-    async function restore() {
-      if (!supabase || sessionStorage.getItem(AUTH_KEY) !== "true") return;
-      const { data } = await supabase.auth.getUser();
-      if (!data?.user) return setAuthed(false);
-      const { data: profile } = await supabase
-        .from("users")
-        .select("role, full_name")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      if (!profile) return setAuthed(false);
-      setUser({
-        id: data.user.id,
-        email: data.user.email,
-        full_name: profile.full_name,
-        role: parseSchoolRole(profile.role),
-      });
-    }
-    void restore();
-  }, []);
-
   if (location.pathname === "/report-not-found") return <ReportNotFound />;
-  if (location.pathname === "/report-not-found") return <ReportNotFound />;
+
+  if (authInitializing) return <LoadingScreen />;
 
   if (!authed && location.pathname === "/forgot-password") {
     return (

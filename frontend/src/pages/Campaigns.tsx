@@ -29,7 +29,7 @@ import {
   type AutomatedMessageLog,
 } from '@/services/automationService';
 
-type SubTab = 'broadcasts' | 'logs';
+type SubTab = 'broadcasts' | 'logs' | 'automations';
 type CategoryFilter = 'ALL' | 'FEES' | 'GENERAL' | 'REPORT';
 
 const categoryLabels: Record<string, string> = {

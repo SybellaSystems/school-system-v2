@@ -1,4 +1,12 @@
-export type View = 'overview' | 'students' | 'midterm' | 'users' | 'campaigns' | 'contacts' | 'content' | 'inquiries';
+export type View =
+  | "overview"
+  | "students"
+  | "midterm"
+  | "users"
+  | "campaigns"
+  | "contacts"
+  | "content"
+  | "inquiries";
 
 export type Contact = {
   id: string;
@@ -12,7 +20,14 @@ export type Contact = {
   status: string;
   created_at: string;
 };
+export type SchoolRole =
+  | "dean_of_studies"
+  | "headteacher"
+  | "teacher"
+  | "it"
+  | "unknown";
 
+export type ManagedSchoolRole = Exclude<SchoolRole, "unknown">;
 export type Campaign = {
   id: string;
   title: string;
@@ -37,7 +52,7 @@ export type BannerAlert = {
   id: string;
   title: string;
   message: string;
-  severity: 'info' | 'warning' | 'critical';
+  severity: "info" | "warning" | "critical";
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -46,7 +61,7 @@ export type BannerAlert = {
 export type Content = {
   id: string;
   title: string;
-  content_type: 'News' | 'Announcement' | 'Gallery';
+  content_type: "News" | "Announcement" | "Gallery";
   excerpt: string;
   image_url?: string;
   src?: string;

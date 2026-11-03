@@ -46,7 +46,7 @@ const TEMPLATES: Record<Category, { title: string; message: string; tags: string
 };
 
 function getRemainingBalance(contact: Contact): number {
-  const raw = String(contact.fee_amount ?? contact.fees ?? '0').replace(/[^\d]/g, '');
+  const raw = String(contact.fee_amount ?? '0').replace(/[^\d]/g, '');
   const paid = Number(raw);
   if (!Number.isFinite(paid) || paid < 0) return REQUIRED_FEES_RWF;
   return Math.max(0, REQUIRED_FEES_RWF - paid);
@@ -192,7 +192,7 @@ export default function NotificationModal({ onClose, onSave, contacts, allowRepo
             const personalized = personalize(message.trim(), contact);
             const res = await sendAfricasTalkingBulkSMS({ to: [contact.phone], message: personalized });
             const status = res.recipients[0]?.status;
-            const ok = status === 'Success' || status === 'Queued' || status === 'Sent';
+            const ok = status === 'Success' || status === 'Queued';
             delivery.push({
               id: contact.id,
               name: contact.parent_name || contact.student_name,

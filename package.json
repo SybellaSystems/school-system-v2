@@ -15,5 +15,8 @@
     "typecheck": "npm --prefix frontend run typecheck",
     "preview": "npm --prefix frontend run preview",
     "install:frontend": "npm --prefix frontend install"
+  },
+  "devDependencies": {
+    "supabase": "^2.122.0"
   }
 }
