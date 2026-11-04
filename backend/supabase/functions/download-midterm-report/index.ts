@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     const pageHeight = 841.89;
     const margin = 42;
     let page = pdf.addPage([pageWidth, pageHeight]);
-    let y = pageHeight - 50;
+    let y = pageHeight - 28;
 
     const draw = (text: string, x: number, yy: number, size = 10, isBold = false, align: 'left' | 'center' = 'left') => {
       const txt = safeText(text);
