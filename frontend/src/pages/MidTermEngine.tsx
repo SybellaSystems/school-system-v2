@@ -10,7 +10,6 @@ import {
   LockKeyhole,
   Pencil,
   Plus,
-  RefreshCw,
   Search,
   Send,
   Trash2,
@@ -19,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { SybellaLoader } from '@sybellasystems/ui';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -447,7 +447,15 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
   };
 
   if (loading) {
-    return <div className="p-6 text-sm text-stone-500 flex gap-2"><RefreshCw className="animate-spin" size={16} />Loading mid-term engine...</div>;
+    return (
+      <SybellaLoader
+        size={84}
+        text="Loading mid-term engine"
+        subtext="Please wait"
+        showLabel
+        className="system-loading-screen"
+      />
+    );
   }
 
   return (

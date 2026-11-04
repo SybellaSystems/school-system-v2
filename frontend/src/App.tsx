@@ -57,6 +57,7 @@ import MaintenanceBanner, {
 } from "./layout/MaintenanceBanner";
 import ForgotPassword from "@/components/auth/ForgotPassword";
 import type { SchoolRole } from "@/types";
+import { SybellaLoader } from "@sybellasystems/ui";
 
 // false = hides News + Gallery + Inquiries
 
@@ -300,10 +301,12 @@ function App() {
 
   function LoadingScreen() {
     return (
-      <div className="loading-screen">
-        <div className="loading-spinner" />
-        <p className="loading-label">Loading workspace...</p>
-      </div>
+      <SybellaLoader
+        text="Loading workspace"
+        subtext="Please wait"
+        showLabel
+        className="system-loading-screen"
+      />
     );
   }
 
