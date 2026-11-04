@@ -104,6 +104,8 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
     return allFromStudents;
   }, [students, role, teacherAssignments]);
 
+  // Make a small, legitimate change to a tracked file first.
+
   const classStudents = useMemo(() => {
     const base = students.filter((s) => s.class_name === selectedClass);
     const q = search.trim().toLowerCase();
