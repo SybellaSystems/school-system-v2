@@ -21,6 +21,7 @@ import {
   type StudentCsvMapping,
 } from "@/utils/studentCsv";
 import { supabase } from "@/lib/supabase";
+import { SybellaLoader } from "@sybellasystems/ui";
 import { triggerStudentWelcomeNotification } from "@/services/automationService";
 
 type FeeStatus = "Paid" | "Partial" | "Unpaid";
@@ -299,6 +300,8 @@ export default function Students() {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredStudents.slice(start, start + itemsPerPage);
   }, [filteredStudents, currentPage]);
+
+  const isInitialLoading = studentsLoading && students.length === 0;
 
   // Reset to page 1 when search changes
   useEffect(() => {
@@ -639,6 +642,17 @@ export default function Students() {
     setStudents((curr) => [...importedStudents, ...curr]);
     setShowImportModal(false);
     notify(`Imported ${importedStudents.length} student records.`);
+  }
+
+  if (isInitialLoading) {
+    return (
+      <SybellaLoader
+        text="Loading students"
+        subtext="Please wait"
+        showLabel
+        className="system-loading-screen"
+      />
+    );
   }
 
   return (

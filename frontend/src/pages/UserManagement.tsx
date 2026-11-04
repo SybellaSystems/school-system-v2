@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  LoaderCircle,
   Search,
   ShieldCheck,
   Users,
@@ -12,6 +11,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { SybellaLoader } from "@sybellasystems/ui";
 type Assignment = { teacher_id: string; class_name: string };
 import type { ManagedSchoolRole, SchoolRole } from "@/types";
 
@@ -286,9 +286,12 @@ export default function UserManagement({ currentRole, currentUserId }: Props) {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 p-16 text-sm text-stone-500">
-            <LoaderCircle className="animate-spin" size={18} /> Loading staff...
-          </div>
+          <SybellaLoader
+            size={72}
+            text="Loading staff"
+            showLabel
+            className="py-12"
+          />
         ) : (
           <div className="divide-y divide-stone-100">
             {filteredUsers.map((user) => {

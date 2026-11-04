@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BookOpen, ClipboardList, GraduationCap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { SybellaLoader } from '@sybellasystems/ui';
 
 type Student = { id: string; full_name: string; class_name: string; stream?: string };
 type ClassSummary = { className: string; studentCount: number; streams: string[] };
@@ -103,7 +104,12 @@ export default function TeacherOverview({
             <p className="mt-1 text-sm text-stone-600">Please try again later or ask the school IT or dean of studies for help.</p>
           </div>
         ) : loading ? (
-          <p className="p-6 text-sm text-stone-500">Loading your class list…</p>
+          <SybellaLoader
+            size={72}
+            text="Loading your class list"
+            showLabel
+            className="py-10"
+          />
         ) : classes.length ? (
           <div className="system-table-wrap rounded-none border-0">
             <table className="system-table">
