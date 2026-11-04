@@ -19,11 +19,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SybellaLoader } from '@sybellasystems/ui';
-import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 import { sendAfricasTalkingBulkSMS } from '@/services/africasTalkingService';
 import { sendBulkEmail } from '@/services/emailService';
 import { addDispatchLog } from '@/services/automationService';
+import { downloadMidtermReportPdf } from '@/utils/midtermReportPdf';
 
 type Role = 'teacher' | 'dean_of_studies' | 'headteacher' | 'it' | 'unknown';
 type Props = { role: Role; userId?: string; notify: (m: string) => void };
@@ -44,11 +44,6 @@ function gradeFor(m: number) {
   if (m >= 60) return 'C';
   if (m >= 50) return 'D';
   return 'F';
-}
-
-function positionFor(average: number, allAverages: number[]) {
-  const sorted = [...allAverages].sort((a, b) => b - a);
-  return sorted.indexOf(average) + 1;
 }
 
 export default function MidTermEngine({ role, userId, notify }: Props) {
@@ -390,75 +385,9 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
     }
   }
 
-  // Keep the printed report layout aligned with the parent download function.
   const exportPDF = () => {
     if (!selectedPeriod || !periodReports.length) return;
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const allAvgs = periodReports.map((r) => r.average);
-    const pageWidth = 595.28;
-    const pageHeight = 841.89;
-    const margin = 42;
-    const tableWidth = pageWidth - margin * 2;
-    const col2 = margin + tableWidth * 0.5;
-    const col3 = margin + tableWidth * 0.75;
-    const rowHeight = 22;
-    const formatDate = (value: string) =>
-      new Date(value).toLocaleDateString('en-GB');
-
-    periodReports.forEach((r, idx) => {
-      if (idx > 0) pdf.addPage();
-      let y = pageHeight - 28;
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(SCHOOL_NAME, pageWidth / 2, y - 14, { align: 'center' });
-      y -= 18;
-      pdf.setFontSize(11);
-      pdf.text('Mid-term report Card', pageWidth / 2, y - 11, { align: 'center' });
-      y -= 30;
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Student: ${r.student_name}`, margin, y - 10);
-      pdf.text(`Class: ${r.class_name}`, 350, y - 10);
-      y -= 18;
-      pdf.text(`Assessment: ${selectedPeriod.name}`, margin, y - 10);
-      y -= 18;
-      pdf.text(`Date: ${formatDate(selectedPeriod.official_date)}`, margin, y - 10);
-      y -= 28;
-
-      const rows = r.report_data.rows || [];
-      const drawRow = (values: string[], bold = false) => {
-        pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-        pdf.rect(margin, y - 18, tableWidth, 20);
-        pdf.line(col2, y + 2, col2, y - 18);
-        pdf.line(col3, y + 2, col3, y - 18);
-        pdf.text(values[0], margin + 6, y - 10);
-        pdf.text(values[1], col2 + 6, y - 10);
-        pdf.text(values[2], col3 + 6, y - 10);
-        y -= rowHeight;
-      };
-      drawRow(['Subject', 'Marks / 100', 'Grade'], true);
-      rows.forEach((x) =>
-        drawRow([x.subject, String(x.mark), x.grade || gradeFor(x.mark)]),
-      );
-
-      y -= 20;
-      const pos = positionFor(r.average, allAvgs);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(11);
-      pdf.text(`Position: ${pos}`, margin, y - 11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Average: ${Number(r.average).toFixed(1)}%`, 350, y - 11);
-      y -= 30;
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text('Decision: _________________________', margin, y - 10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(7);
-      pdf.text(`${SCHOOL_NAME} - Generated ${new Date().toLocaleDateString()}`, pageWidth / 2, 23, { align: 'center' });
-    });
-
-    pdf.save(`Midterm_${selectedPeriod.name}.pdf`);
+    downloadMidtermReportPdf(periodReports, selectedPeriod);
   };
 
   const exportExcel = () => {
