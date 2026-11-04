@@ -453,6 +453,7 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
         text="Loading mid-term engine"
         subtext="Please wait"
         showLabel
+        primaryColor="#ea580c"
         className="system-loading-screen"
       />
     );

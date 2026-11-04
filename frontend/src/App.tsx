@@ -305,6 +305,7 @@ function App() {
         text="Loading workspace"
         subtext="Please wait"
         showLabel
+        primaryColor="#ea580c"
         className="system-loading-screen"
       />
     );

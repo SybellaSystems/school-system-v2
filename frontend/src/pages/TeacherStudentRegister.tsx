@@ -51,6 +51,7 @@ export default function TeacherStudentRegister() {
           size={72}
           text="Loading your class register"
           showLabel
+          primaryColor="#ea580c"
           className="py-12"
         />
       ) : error ? (

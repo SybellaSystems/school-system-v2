@@ -290,6 +290,7 @@ export default function UserManagement({ currentRole, currentUserId }: Props) {
             size={72}
             text="Loading staff"
             showLabel
+            primaryColor="#ea580c"
             className="py-12"
           />
         ) : (

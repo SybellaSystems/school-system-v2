@@ -108,6 +108,7 @@ export default function TeacherOverview({
             size={72}
             text="Loading your class list"
             showLabel
+            primaryColor="#ea580c"
             className="py-10"
           />
         ) : classes.length ? (

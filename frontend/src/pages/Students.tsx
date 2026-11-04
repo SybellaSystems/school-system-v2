@@ -650,6 +650,7 @@ export default function Students() {
         text="Loading students"
         subtext="Please wait"
         showLabel
+        primaryColor="#ea580c"
         className="system-loading-screen"
       />
     );
