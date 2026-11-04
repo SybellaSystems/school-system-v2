@@ -15,16 +15,16 @@ import {
   Trash2,
   UnlockKeyhole,
   Link2,
+  Loader2,
   X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SybellaLoader } from '@sybellasystems/ui';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { sendAfricasTalkingBulkSMS } from '@/services/africasTalkingService';
 import { sendBulkEmail } from '@/services/emailService';
 import { addDispatchLog } from '@/services/automationService';
+import { downloadMidtermReportPdf } from '@/utils/midtermReportPdf';
 
 type Role = 'teacher' | 'dean_of_studies' | 'headteacher' | 'it' | 'unknown';
 type Props = { role: Role; userId?: string; notify: (m: string) => void };
@@ -45,11 +45,6 @@ function gradeFor(m: number) {
   if (m >= 60) return 'C';
   if (m >= 50) return 'D';
   return 'F';
-}
-
-function positionFor(average: number, allAverages: number[]) {
-  const sorted = [...allAverages].sort((a, b) => b - a);
-  return sorted.indexOf(average) + 1;
 }
 
 export default function MidTermEngine({ role, userId, notify }: Props) {
@@ -77,6 +72,7 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState('');
 
   const selectedPeriod = useMemo(() => periods.find((p) => p.id === selectedPeriodId) ?? null, [periods, selectedPeriodId]);
@@ -391,51 +387,17 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
     }
   }
 
-  // PDF exactly as wireframe
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!selectedPeriod || !periodReports.length) return;
-    const pdf = new jsPDF();
-    const allAvgs = periodReports.map((r) => r.average);
-
-    periodReports.forEach((r, idx) => {
-      if (idx > 0) pdf.addPage();
-      const yStart = 10;
-      // School name - centered
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(SCHOOL_NAME, 105, yStart, { align: 'center' });
-      pdf.setFontSize(11);
-      pdf.text('Mid-term report Card', 105, yStart + 7, { align: 'center' });
-
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Student: ${r.student_name}`, 14, yStart + 18);
-      pdf.text(`Class: ${r.class_name}`, 140, yStart + 18);
-      pdf.text(`Assessment: ${selectedPeriod.name}`, 14, yStart + 25);
-      pdf.text(`Date: ${selectedPeriod.official_date}`, 14, yStart + 32);
-
-      const rows = r.report_data.rows || [];
-      autoTable(pdf, {
-        startY: yStart + 40,
-        head: [['Subject', 'Marks / 100', 'Grade']],
-        body: rows.map((x) => [x.subject, String(x.mark), x.grade || gradeFor(x.mark)]),
-        theme: 'grid',
-        styles: { fontSize: 10, cellPadding: 3 },
-        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.3, lineColor: [0, 0, 0] },
-        bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
-      });
-
-      const finalY = (pdf as any).lastAutoTable.finalY + 10;
-      const pos = positionFor(r.average, allAvgs);
-      pdf.text(`Position: ${pos}`, 14, finalY);
-      pdf.text(`Average: ${r.average}%`, 140, finalY);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Decision: __________________', 14, finalY + 12);
-      pdf.setFontSize(8);
-      pdf.text(`${SCHOOL_NAME} - Generated ${new Date().toLocaleDateString()}`, 105, 285, { align: 'center' });
-    });
-
-    pdf.save(`Midterm_${selectedPeriod.name}.pdf`);
+    setExportingPdf(true);
+    try {
+      await downloadMidtermReportPdf(periodReports, selectedPeriod);
+      notify('PDF export downloaded');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not export reports');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const exportExcel = () => {
@@ -532,7 +494,10 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
             <div className="flex items-center justify-between border-b p-3">
               <h2 className="text-sm font-bold">Marks register - {selectedClass}</h2>
               <div className="flex gap-2">
-                <button onClick={exportPDF} disabled={!periodReports.length} className="rounded border px-3 py-1 text-xs font-medium disabled:opacity-40"><Download size={12} className="inline mr-1" />PDF</button>
+                <button onClick={() => void exportPDF()} disabled={!periodReports.length || exportingPdf || busy} className="inline-flex items-center rounded border px-3 py-1 text-xs font-medium disabled:opacity-40">
+                  {exportingPdf ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Download size={12} className="mr-1" />}
+                  {exportingPdf ? 'Generating...' : 'PDF'}
+                </button>
                 <button onClick={exportExcel} className="rounded border px-3 py-1 text-xs font-medium"><FileSpreadsheet size={12} className="inline mr-1" />Excel</button>
               </div>
             </div>
