@@ -132,8 +132,19 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
   const marksTotalPages = Math.max(1, Math.ceil(classStudents.length / PAGE_SIZE));
   const reportsTotalPages = Math.max(1, Math.ceil(periodReports.length / PAGE_SIZE));
 
-  const REPORT_BASE_URL = import.meta.env.VITE_REPORT_BASE_URL || 'https://gacuba.co.rw';
-  const buildLink = useCallback((report: Report, token: string) => `${REPORT_BASE_URL}/parent-report/${report.id}?token=${token}`, []);
+  const configuredPortalBaseUrl = import.meta.env.VITE_PARENT_PORTAL_BASE_URL?.trim();
+  const isLocalHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+  const reportBaseUrl =
+    configuredPortalBaseUrl ||
+    (isLocalHost ? window.location.origin : 'https://portal.gacuba2a.co.rw');
+  const buildLink = useCallback(
+    (report: Report, token: string) =>
+      `${reportBaseUrl.replace(/\/+$/, '')}/parent-report/${report.id}?token=${encodeURIComponent(token)}`,
+    [reportBaseUrl],
+  );
 
   const refresh = useCallback(async () => {
     if (!supabase) return;
@@ -328,13 +339,12 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
       const { data: linkData } = await supabase!.functions.invoke('issue-midterm-links', { body: { report_ids: periodReports.map((r) => r.id) } });
       const links: IssuedToken[] = (linkData as any)?.links || (Array.isArray(linkData) ? linkData : []) as any;
       const map: Record<string, IssuedToken> = {};
-      links.forEach((i) => { 
-  if (i.report_id && i.token) {
-    // Always force gacuba.co.rw, ignore what function returns
-    const url = buildLink({ id: i.report_id } as Report, i.token);
-    map[i.report_id] = { report_id: i.report_id, token: i.token, url }; 
-  }
-});
+      links.forEach((i) => {
+        if (i.report_id && i.token) {
+          const url = buildLink({ id: i.report_id } as Report, i.token);
+          map[i.report_id] = { report_id: i.report_id, token: i.token, url };
+        }
+      });
       setIssuedTokens(map);
       localStorage.setItem(`midterm_tokens_${selectedPeriod.id}`, JSON.stringify(map));
       notify(`Finalized with ${Object.keys(map).length} parent links`);

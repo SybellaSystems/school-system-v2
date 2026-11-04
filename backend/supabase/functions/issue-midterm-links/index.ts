@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         if (updateError) return json({ error: "Unable to publish report." }, 500);
       }
 
-      const baseUrl = Deno.env.get("REPORT_BASE_URL") || "https://gacuba2a.co.rw";
+      const baseUrl = (Deno.env.get("REPORT_BASE_URL") || "https://portal.gacuba2a.co.rw").replace(/\/+$/, "");
       const downloadUrl = `${baseUrl}/parent-report/${report.id}?token=${token!}`;
       const directDownload = `${supabaseUrl}/functions/v1/download-midterm-report?token=${token!}`;
       // Return gacuba link to frontend, but keep direct link as backup
