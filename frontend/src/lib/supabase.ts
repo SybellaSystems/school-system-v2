@@ -18,7 +18,7 @@ const rawKey =
       ?.SUPABASE_ANON_KEY) ||
   "";
 
-const supabaseUrl = String(rawUrl).trim();
+export const supabaseUrl = String(rawUrl).trim();
 const supabaseAnonKey = String(rawKey).trim();
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
