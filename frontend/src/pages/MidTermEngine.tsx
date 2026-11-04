@@ -15,6 +15,7 @@ import {
   Trash2,
   UnlockKeyhole,
   Link2,
+  Loader2,
   X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -71,6 +72,7 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState('');
 
   const selectedPeriod = useMemo(() => periods.find((p) => p.id === selectedPeriodId) ?? null, [periods, selectedPeriodId]);
@@ -385,9 +387,17 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
     }
   }
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!selectedPeriod || !periodReports.length) return;
-    downloadMidtermReportPdf(periodReports, selectedPeriod);
+    setExportingPdf(true);
+    try {
+      await downloadMidtermReportPdf(periodReports, selectedPeriod);
+      notify('PDF export downloaded');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not export reports');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const exportExcel = () => {
@@ -484,7 +494,10 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
             <div className="flex items-center justify-between border-b p-3">
               <h2 className="text-sm font-bold">Marks register - {selectedClass}</h2>
               <div className="flex gap-2">
-                <button onClick={exportPDF} disabled={!periodReports.length} className="rounded border px-3 py-1 text-xs font-medium disabled:opacity-40"><Download size={12} className="inline mr-1" />PDF</button>
+                <button onClick={() => void exportPDF()} disabled={!periodReports.length || exportingPdf || busy} className="inline-flex items-center rounded border px-3 py-1 text-xs font-medium disabled:opacity-40">
+                  {exportingPdf ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Download size={12} className="mr-1" />}
+                  {exportingPdf ? 'Generating...' : 'PDF'}
+                </button>
                 <button onClick={exportExcel} className="rounded border px-3 py-1 text-xs font-medium"><FileSpreadsheet size={12} className="inline mr-1" />Excel</button>
               </div>
             </div>

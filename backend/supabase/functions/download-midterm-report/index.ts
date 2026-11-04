@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     }
 
     const pdfBytes = await generateMidtermReportPdf(
-      report,
+      [report],
       periodName,
       periodDate,
       allAverages,
