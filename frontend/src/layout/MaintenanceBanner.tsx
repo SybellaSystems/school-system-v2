@@ -1,5 +1,5 @@
 export const MAINTENANCE_MODE = true;
-export const MAINTENANCE_MESSAGE = "System is under maintenance - Please try again later.";
+export const MAINTENANCE_MESSAGE = "SMS services are temporarily unavailable pending Sender ID approval. All student management and mid-term reporting features remain fully accessible.";
 
 export default function MaintenanceBanner() {
   if (!MAINTENANCE_MODE) return null;
