@@ -25,6 +25,7 @@ import { sendAfricasTalkingBulkSMS } from '@/services/africasTalkingService';
 import { sendBulkEmail } from '@/services/emailService';
 import { addDispatchLog } from '@/services/automationService';
 import { downloadMidtermReportPdf } from '@/utils/midtermReportPdf';
+import { isSupportedClass, SCHOOL_CLASSES } from '@/lib/classes';
 
 type Role = 'teacher' | 'dean_of_studies' | 'headteacher' | 'it' | 'unknown';
 type Props = { role: Role; userId?: string; notify: (m: string) => void };
@@ -88,16 +89,21 @@ export default function MidTermEngine({ role, userId, notify }: Props) {
   }, [isDean, isFinalized, role, teacherAssignments, selectedClass]);
 
     const classes = useMemo(() => {
-    const allFromStudents = [...new Set(students.map((s) => s.class_name))].filter(Boolean).sort() as string[];
-    if (role === 'teacher') {
+      const allFromStudents = [...new Set(students.map((s) => s.class_name))]
+        .filter(isSupportedClass)
+        .sort();
+      if (role === 'teacher') {
       // If teacher has assignments, show those assignments even if no students yet in those classes
       // Merge both so teacher sees assigned classes
       if (teacherAssignments.length) {
-        return [...new Set([...teacherAssignments, ...allFromStudents.filter(c => teacherAssignments.includes(c))])].sort();
+        return [...new Set([
+          ...teacherAssignments.filter(isSupportedClass),
+          ...allFromStudents.filter(c => teacherAssignments.includes(c)),
+        ])].sort();
       }
       return [];
     }
-    return allFromStudents;
+    return [...new Set([...SCHOOL_CLASSES, ...allFromStudents])].sort();
   }, [students, role, teacherAssignments]);
 
   // Make a small, legitimate change to a tracked file first.

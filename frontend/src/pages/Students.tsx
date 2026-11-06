@@ -23,6 +23,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { SybellaLoader } from "@sybellasystems/ui";
 import { triggerStudentWelcomeNotification } from "@/services/automationService";
+import { SCHOOL_CLASSES, isSupportedClass } from "@/lib/classes";
 
 type FeeStatus = "Paid" | "Partial" | "Unpaid";
 
@@ -46,33 +47,6 @@ type ArchivedStudent = Student & {
   archivedReason?: string;
 };
 
-const classes = [
-  "S1 A",
-  "S1 B",
-  "S1 C",
-  "S1 D",
-  "S1 E",
-  "S1 F",
-  "S1 G",
-  "S2 A",
-  "S2 B",
-  "S2 C",
-  "S2 D",
-  "S2 E",
-  "S3 A",
-  "S3 B",
-  "S3 C",
-  "S3 D",
-  "S3 E",
-  "S4 ARH A",
-  "S4 ARH B",
-  "S4 STREAM 2",
-  "S5 ARH",
-  "S5 STREAM 2",
-  "S6 MPC",
-  "S6 HGL",
-];
-
 const initialStudents: Student[] = [];
 
 const emptyForm = {
@@ -87,6 +61,19 @@ const emptyForm = {
   feeAmount: "145,000 RWF",
 };
 
+function normalizeClassName(value: unknown) {
+  const className = String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!className) return "";
+
+  const compactClassName = className.replace(/\s+/g, "").toUpperCase();
+  const canonicalClass = SCHOOL_CLASSES.find(
+    (candidate) => candidate.replace(/\s+/g, "").toUpperCase() === compactClassName,
+  );
+  return canonicalClass ?? className;
+}
+
 function toStudentRecord(row: Record<string, unknown>): Student {
   return {
     id: String(row.id),
@@ -99,7 +86,7 @@ function toStudentRecord(row: Record<string, unknown>): Student {
     parentName: String(row.parent_name ?? "Not provided"),
     email: String(row.email ?? ""),
     phone: String(row.phone ?? ""),
-    studentClass: String(row.class_name ?? ""),
+    studentClass: normalizeClassName(row.class_name),
     stream: String(row.stream ?? ""),
     feeStatus:
       row.fee_status === "Paid" || row.fee_status === "Partial"
@@ -133,7 +120,7 @@ function toStudentPayload(student: Omit<Student, "id" | "lastUpdated">) {
     parent_name: student.parentName,
     email: student.email,
     phone: student.phone,
-    class_name: student.studentClass,
+    class_name: normalizeClassName(student.studentClass),
     stream: student.stream ?? "",
     fee_status: student.feeStatus,
     fee_amount: student.feeAmount,
@@ -150,7 +137,7 @@ function toArchivePayload(student: Student, reason = "Deleted by admin") {
     parent_name: student.parentName,
     email: student.email,
     phone: student.phone,
-    class_name: student.studentClass,
+    class_name: normalizeClassName(student.studentClass),
     stream: student.stream ?? "",
     fee_status: student.feeStatus,
     fee_amount: student.feeAmount,
@@ -274,11 +261,12 @@ export default function Students() {
   const availableClasses = useMemo(() => {
     return [
       ...new Set([
-        ...classes,
-        ...students.map((s) => s.studentClass).filter(Boolean),
+        ...SCHOOL_CLASSES,
+        ...students.map((s) => s.studentClass).filter(isSupportedClass),
+        ...archivedStudents.map((s) => s.studentClass).filter(isSupportedClass),
       ]),
     ].sort();
-  }, [students]);
+  }, [students, archivedStudents]);
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -730,7 +718,7 @@ export default function Students() {
             <span className="text-[10px] uppercase font-bold text-slate-500 px-2 block">
               Quick Stream Select
             </span>
-            {availableClasses.slice(0, 8).map((c) => (
+            {availableClasses.map((c) => (
               <button
                 key={c}
                 type="button"
@@ -1106,7 +1094,7 @@ export default function Students() {
               </button>
               <div className="flex items-center gap-1 mx-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum =
+                  const pageNum =
                     totalPages <= 5
                       ? i + 1
                       : currentPage <= 3

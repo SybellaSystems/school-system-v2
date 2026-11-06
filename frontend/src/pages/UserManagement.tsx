@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { SybellaLoader } from "@sybellasystems/ui";
+import { isSupportedClass, SCHOOL_CLASSES } from "@/lib/classes";
 type Assignment = { teacher_id: string; class_name: string };
 import type { ManagedSchoolRole, SchoolRole } from "@/types";
 
@@ -97,16 +98,21 @@ export default function UserManagement({ currentRole, currentUserId }: Props) {
       setDraftRoles(Object.fromEntries(records.map((x) => [x.id, x.role])));
       setClasses(
         [
-          ...new Set(
-            (c.data ?? []).map((x: any) => x.class_name).filter(Boolean),
-          ),
+          ...new Set([
+            ...SCHOOL_CLASSES,
+            ...(c.data ?? [])
+              .map((x: any) => String(x.class_name ?? ""))
+              .filter(isSupportedClass),
+          ]),
         ].sort() as string[],
       );
       setAssignments(
-        (a.data ?? []).map((x: any) => ({
-          teacher_id: x.teacher_user_id,
-          class_name: x.class_name,
-        })),
+        (a.data ?? [])
+          .filter((x: any) => isSupportedClass(x.class_name))
+          .map((x: any) => ({
+            teacher_id: x.teacher_user_id,
+            class_name: String(x.class_name).trim().replace(/\s+/g, " "),
+          })),
       );
     } catch (e: any) {
       setError(e.message);

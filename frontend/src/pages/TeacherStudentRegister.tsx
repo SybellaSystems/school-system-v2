@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Search, Save, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SybellaLoader } from '@sybellasystems/ui';
+import { isSupportedClass } from '@/lib/classes';
 
 type Student = { id: string; full_name: string; class_name: string; stream?: string };
 
@@ -58,7 +59,11 @@ export default function TeacherStudentRegister() {
       }
       else {
         const registerStudents = (registerResult.data ?? []) as Student[];
-        const classes = [...new Set((assignmentResult.data ?? []).map((assignment) => String(assignment.class_name)).filter(Boolean))].sort();
+        const classes = [...new Set(
+          (assignmentResult.data ?? [])
+            .map((assignment) => String(assignment.class_name))
+            .filter(isSupportedClass),
+        )].sort();
         setStudents(registerStudents);
         setAssignedClasses(classes);
         setFormData((current) => ({ ...current, className: current.className || classes[0] || '' }));
