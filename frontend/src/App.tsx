@@ -36,6 +36,7 @@ import type {
   WorkspaceSettings,
 } from "@/types";
 import { SCHOOL_NAME } from "@/lib/constants";
+import { compareNames } from "@/lib/sorting";
 import { downloadBlob } from "@/utils/helpers";
 import Campaigns from "@/pages/Campaigns";
 import Contacts from "@/pages/Contacts";
@@ -273,9 +274,12 @@ function App() {
         ]);
         if (deanRole || headRole)
           setContacts(
-            (studentsResult?.data ?? []).map((r) =>
-              mapStudentToParentContact(r as any),
-            ),
+            (studentsResult?.data ?? [])
+              .map((r) => mapStudentToParentContact(r as any))
+              .sort((first, second) =>
+                compareNames(first.parent_name, second.parent_name)
+                || compareNames(first.student_name, second.student_name),
+              ),
           );
         if (campaignsResult?.data)
           setCampaigns(campaignsResult.data as Campaign[]);
@@ -314,7 +318,12 @@ function App() {
             .order("created_at", { ascending: false })
             .limit(5000);
           setContacts(
-            (data ?? []).map((r) => mapStudentToParentContact(r as any)),
+            (data ?? [])
+              .map((r) => mapStudentToParentContact(r as any))
+              .sort((first, second) =>
+                compareNames(first.parent_name, second.parent_name)
+                || compareNames(first.student_name, second.student_name),
+              ),
           );
         },
       )

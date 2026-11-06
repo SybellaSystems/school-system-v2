@@ -3,6 +3,7 @@ import { Plus, Search, Save, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SybellaLoader } from '@sybellasystems/ui';
 import { isSupportedClass } from '@/lib/classes';
+import { compareNames } from '@/lib/sorting';
 
 type Student = { id: string; full_name: string; class_name: string; stream?: string };
 
@@ -64,7 +65,10 @@ export default function TeacherStudentRegister() {
             .map((assignment) => String(assignment.class_name))
             .filter(isSupportedClass),
         )].sort();
-        setStudents(registerStudents);
+        setStudents(registerStudents.sort((first, second) =>
+          compareNames(first.class_name, second.class_name)
+          || compareNames(first.full_name, second.full_name),
+        ));
         setAssignedClasses(classes);
         setFormData((current) => ({ ...current, className: current.className || classes[0] || '' }));
       }
@@ -117,12 +121,17 @@ export default function TeacherStudentRegister() {
       return;
     }
 
-    setStudents((current) => [...current, data as Student].sort((a, b) => a.class_name.localeCompare(b.class_name) || a.full_name.localeCompare(b.full_name)));
+    setStudents((current) => [...current, data as Student].sort((first, second) =>
+      compareNames(first.class_name, second.class_name)
+      || compareNames(first.full_name, second.full_name),
+    ));
     setFormData((current) => ({ ...current, fullName: '', parentName: '', email: '', phone: '', stream: '' }));
     setAddSuccess(`${data.full_name} was added to ${data.class_name}.`);
   }
 
-  const visibleStudents = students.filter((student) => `${student.full_name} ${student.class_name} ${student.stream ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const visibleStudents = students
+    .filter((student) => `${student.full_name} ${student.class_name} ${student.stream ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((first, second) => compareNames(first.full_name, second.full_name));
 
   return <div className="space-y-5">
     <div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FileSpreadsheet, Search, Users, Phone, Mail } from 'lucide-react';
 import type { Contact } from '@/types';
+import { compareNames } from '@/lib/sorting';
 
 export default function Contacts({
   contacts,
@@ -20,17 +21,22 @@ export default function Contacts({
 
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return contacts.filter((contact) => {
-      const matchesQuery = !query || [
-        contact.parent_name,
-        contact.student_name,
-        contact.class_name,
-        contact.phone,
-        contact.email,
-      ].some((value) => value.toLocaleLowerCase().includes(query));
-      const matchesClass = !classFilter || contact.class_name === classFilter;
-      return matchesQuery && matchesClass;
-    });
+    return contacts
+      .filter((contact) => {
+        const matchesQuery = !query || [
+          contact.parent_name,
+          contact.student_name,
+          contact.class_name,
+          contact.phone,
+          contact.email,
+        ].some((value) => value.toLocaleLowerCase().includes(query));
+        const matchesClass = !classFilter || contact.class_name === classFilter;
+        return matchesQuery && matchesClass;
+      })
+      .sort((first, second) =>
+        compareNames(first.parent_name, second.parent_name)
+        || compareNames(first.student_name, second.student_name),
+      );
    }, [contacts, search, classFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));

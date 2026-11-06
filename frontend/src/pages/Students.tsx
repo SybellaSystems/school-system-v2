@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { SybellaLoader } from "@sybellasystems/ui";
 import { triggerStudentWelcomeNotification } from "@/services/automationService";
 import { SCHOOL_CLASSES, isSupportedClass } from "@/lib/classes";
+import { compareNames } from "@/lib/sorting";
 
 type FeeStatus = "Paid" | "Partial" | "Unpaid";
 
@@ -225,7 +226,7 @@ export default function Students() {
       const { data, error: loadError } = await supabase!
         .from("school_students")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("full_name", { ascending: true });
       if (cancelled) return;
       if (loadError) {
         console.error("Failed to load student registry", loadError);
@@ -243,7 +244,7 @@ export default function Students() {
       const { data, error } = await supabase!
         .from("school_students_archive")
         .select("*")
-        .order("archived_at", { ascending: false });
+        .order("full_name", { ascending: true });
       if (!error && data) {
         setArchivedStudents(
           (data as unknown as Record<string, unknown>[]).map(toArchivedRecord),
@@ -271,18 +272,20 @@ export default function Students() {
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
     const source = activeSubMenu === "archive" ? archivedStudents : students;
-    return source.filter((student) => {
-      const matchesSearch = [
-        student.fullName,
-        student.parentName,
-        student.email,
-        student.phone,
-        student.registryCode ?? student.id,
-      ].some((val) => val.toLowerCase().includes(query));
-      const matchesClass = !classFilter || student.studentClass === classFilter;
-      const matchesStatus = !statusFilter || student.feeStatus === statusFilter;
-      return matchesSearch && matchesClass && matchesStatus;
-    });
+    return source
+      .filter((student) => {
+        const matchesSearch = [
+          student.fullName,
+          student.parentName,
+          student.email,
+          student.phone,
+          student.registryCode ?? student.id,
+        ].some((val) => val.toLowerCase().includes(query));
+        const matchesClass = !classFilter || student.studentClass === classFilter;
+        const matchesStatus = !statusFilter || student.feeStatus === statusFilter;
+        return matchesSearch && matchesClass && matchesStatus;
+      })
+      .sort((first, second) => compareNames(first.fullName, second.fullName));
   }, [
     students,
     archivedStudents,
