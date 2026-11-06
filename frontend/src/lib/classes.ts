@@ -23,7 +23,7 @@ export const SCHOOL_CLASSES = [
   "S6 HGL",
 ] as const;
 
-const removedClasses = new Set(["S4 ARH", "S5 ARH"]);
+const removedClasses = new Set(["S4 ARH"]);
 
 export function isSupportedClass(value: unknown): value is string {
   const className = String(value ?? "").trim().replace(/\s+/g, " ");

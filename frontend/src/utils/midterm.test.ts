@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { averageMark, compileReportRows, gradeForMark, isValidSmsPhone, shouldRegenerateReport } from './midterm';
 import { autoMapStudentCsvHeaders, parseStudentCsv, previewStudentCsvRows } from './studentCsv';
+import { isSupportedClass } from '@/lib/classes';
 
 describe('mid-term report rules', () => {
   it('maps mark boundaries to grades', () => {
@@ -57,5 +58,11 @@ describe('student CSV validation', () => {
     expect(result.student).toBeNull();
     expect(result.errors).toContain('Email address is invalid.');
     expect(result.errors).toContain('A valid parent phone number is required.');
+  });
+});
+
+describe('supported classes', () => {
+  it('keeps S5 ARH available for class selectors and assignments', () => {
+    expect(isSupportedClass(' S5   ARH ')).toBe(true);
   });
 });
