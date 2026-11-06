@@ -18,6 +18,7 @@ export const SCHOOL_CLASSES = [
   "S3 E",
   "S4 ARH A",
   "S4 ARH B",
+  "S5 ARH",
   "S6 MPC",
   "S6 HGL",
 ] as const;
