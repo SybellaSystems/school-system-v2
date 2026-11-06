@@ -20,6 +20,7 @@ import {
 } from '@/services/africasTalkingService';
 import { sendBulkEmail } from '@/services/emailService';
 import { addDispatchLog } from '@/services/automationService';
+import { compareNames } from '@/lib/sorting';
 
 type Category = 'FEES' | 'ANNOUNCEMENT' | 'REPORT';
 type RecipientMode = 'ALL' | 'SELECT';
@@ -103,14 +104,19 @@ export default function NotificationModal({ onClose, onSave, contacts, allowRepo
   const messageRef = useRef<HTMLTextAreaElement>(null);
 
   const validContacts = useMemo(() => {
-    return contacts.filter((c) => {
-      const hasPhone = !!c.phone && c.phone.replace(/\D/g, '').length >= 9;
-      const hasEmail = !!c.email && c.email.includes('@');
-      if (useSMS && useEmail) return hasPhone || hasEmail;
-      if (useSMS) return hasPhone;
-      if (useEmail) return hasEmail;
-      return false;
-    });
+    return contacts
+      .filter((c) => {
+        const hasPhone = !!c.phone && c.phone.replace(/\D/g, '').length >= 9;
+        const hasEmail = !!c.email && c.email.includes('@');
+        if (useSMS && useEmail) return hasPhone || hasEmail;
+        if (useSMS) return hasPhone;
+        if (useEmail) return hasEmail;
+        return false;
+      })
+      .sort((first, second) =>
+        compareNames(first.parent_name, second.parent_name)
+        || compareNames(first.student_name, second.student_name),
+      );
   }, [contacts, useSMS, useEmail]);
 
   const targeted = useMemo(() => {
