@@ -1,15 +1,41 @@
-import { useEffect, useState } from 'react';
-import { Search, Users } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Plus, Search, Save, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { SybellaLoader } from '@sybellasystems/ui';
 
 type Student = { id: string; full_name: string; class_name: string; stream?: string };
 
+const TEACHER_ENROLLMENT_CUTOFF = '2027-01-01';
+
+function isTeacherEnrollmentOpen() {
+  const today = new Date();
+  const localDate = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+  return localDate < TEACHER_ENROLLMENT_CUTOFF;
+}
+
 export default function TeacherStudentRegister() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [assignedClasses, setAssignedClasses] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const [addError, setAddError] = useState('');
+  const [addSuccess, setAddSuccess] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    parentName: '',
+    email: '',
+    phone: '',
+    className: '',
+    stream: '',
+  });
+  const enrollmentOpen = isTeacherEnrollmentOpen();
 
   useEffect(() => {
     async function loadRegister() {
@@ -18,18 +44,78 @@ export default function TeacherStudentRegister() {
         setLoading(false);
         return;
       }
-      const { data, error: queryError } = await supabase.from('teacher_student_register')
-        .select('id, full_name, class_name, stream')
-        .order('class_name').order('full_name');
-      if (queryError) {
-        console.error('Could not load the teacher class register', queryError);
+      const [registerResult, assignmentResult] = await Promise.all([
+        supabase.from('teacher_student_register')
+          .select('id, full_name, class_name, stream')
+          .order('class_name').order('full_name'),
+        supabase.from('teacher_class_assignments')
+          .select('class_name')
+          .order('class_name'),
+      ]);
+      if (registerResult.error || assignmentResult.error) {
+        console.error('Could not load the teacher class register', registerResult.error ?? assignmentResult.error);
         setError('Your class register is unavailable right now. Please try again later.');
       }
-      else setStudents((data ?? []) as Student[]);
+      else {
+        const registerStudents = (registerResult.data ?? []) as Student[];
+        const classes = [...new Set((assignmentResult.data ?? []).map((assignment) => String(assignment.class_name)).filter(Boolean))].sort();
+        setStudents(registerStudents);
+        setAssignedClasses(classes);
+        setFormData((current) => ({ ...current, className: current.className || classes[0] || '' }));
+      }
       setLoading(false);
     }
     void loadRegister();
   }, []);
+
+  async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAddError('');
+    setAddSuccess('');
+    if (!enrollmentOpen) {
+      setAddError('Teacher self-enrollment closed on 1 January 2027. Please ask the school office to add this student.');
+      return;
+    }
+    if (!supabase) {
+      setAddError('Student enrollment is unavailable right now. Please ask the school office for help.');
+      return;
+    }
+    if (!formData.fullName.trim() || !formData.parentName.trim() || !formData.phone.trim() || !formData.className) {
+      setAddError('Student name, parent name, parent phone, and class are required.');
+      return;
+    }
+
+    setSaving(true);
+    const registryCode = `GSG-${Math.floor(10000 + Math.random() * 90000)}`;
+    const { data, error: insertError } = await supabase
+      .from('school_students')
+      .insert({
+        registry_code: registryCode,
+        registration_number: registryCode,
+        full_name: formData.fullName.trim(),
+        parent_name: formData.parentName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        class_name: formData.className,
+        stream: formData.stream.trim() || 'General',
+        fee_status: 'Unpaid',
+        fee_amount: '0 RWF',
+      })
+      .select('id, full_name, class_name, stream')
+      .maybeSingle();
+    setSaving(false);
+    if (insertError || !data) {
+      console.error('Could not add student from teacher register', insertError);
+      setAddError(insertError?.code === '42501'
+        ? 'Teacher self-enrollment is no longer available. Please ask the school office to add this student.'
+        : 'We could not add this student. Please check the details and try again.');
+      return;
+    }
+
+    setStudents((current) => [...current, data as Student].sort((a, b) => a.class_name.localeCompare(b.class_name) || a.full_name.localeCompare(b.full_name)));
+    setFormData((current) => ({ ...current, fullName: '', parentName: '', email: '', phone: '', stream: '' }));
+    setAddSuccess(`${data.full_name} was added to ${data.class_name}.`);
+  }
 
   const visibleStudents = students.filter((student) => `${student.full_name} ${student.class_name} ${student.stream ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -39,6 +125,40 @@ export default function TeacherStudentRegister() {
       <h1 className="mt-1 text-2xl font-bold text-[#3b2314] sm:text-3xl">Your class register</h1>
       <p className="mt-1 text-sm text-stone-500">Students in the classes assigned to you.</p>
     </div>
+    {enrollmentOpen ? (
+      <section className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-semibold text-stone-900"><Plus size={17} className="text-orange-600" /> Add a student</h2>
+            <p className="mt-1 text-sm text-stone-600">You can add students to your assigned classes until 1 January 2027.</p>
+          </div>
+          <button type="button" onClick={() => { setShowAddForm((current) => !current); setAddError(''); setAddSuccess(''); }} className="inline-flex items-center gap-2 rounded-lg bg-[#ea580c] px-3 py-2 text-sm font-semibold text-white hover:bg-[#c2410c]">
+            <Plus size={15} /> {showAddForm ? 'Close' : 'Add student'}
+          </button>
+        </div>
+        {showAddForm && (
+          <form onSubmit={handleAddStudent} className="mt-4 grid gap-3 border-t border-orange-200 pt-4 sm:grid-cols-2">
+            <input aria-label="Student full name" required value={formData.fullName} onChange={(event) => setFormData({ ...formData, fullName: event.target.value })} placeholder="Student full name" className="rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <select aria-label="Class" required value={formData.className} onChange={(event) => setFormData({ ...formData, className: event.target.value })} className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm">
+              <option value="">Select assigned class</option>
+              {assignedClasses.map((className) => <option key={className} value={className}>{className}</option>)}
+            </select>
+            <input aria-label="Parent or guardian name" required value={formData.parentName} onChange={(event) => setFormData({ ...formData, parentName: event.target.value })} placeholder="Parent or guardian name" className="rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <input aria-label="Parent phone" required value={formData.phone} onChange={(event) => setFormData({ ...formData, phone: event.target.value })} placeholder="Parent phone number" className="rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <input type="email" aria-label="Parent email" value={formData.email} onChange={(event) => setFormData({ ...formData, email: event.target.value })} placeholder="Parent email (optional)" className="rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <input aria-label="Stream or combination" value={formData.stream} onChange={(event) => setFormData({ ...formData, stream: event.target.value })} placeholder="Stream or combination (optional)" className="rounded-lg border border-stone-200 px-3 py-2 text-sm" />
+            <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">{addError && <p role="alert" className="text-rose-700">{addError}</p>}{addSuccess && <p role="status" className="text-green-700">{addSuccess}</p>}</div>
+              <button type="submit" disabled={saving || !assignedClasses.length} className="inline-flex items-center gap-2 rounded-lg bg-[#3b2314] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Save size={15} /> {saving ? 'Saving…' : 'Save student'}</button>
+            </div>
+          </form>
+        )}
+      </section>
+    ) : (
+      <div role="status" className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+        Teacher self-enrollment closed on 1 January 2027. Please ask the school office to add new students.
+      </div>
+    )}
     <section className="rounded-xl border border-[#bae6fd] bg-white shadow-sm overflow-hidden">
       <div className="border-b border-[#e0f2fe] p-4 bg-[#faf8f5]">
         <label className="relative block max-w-sm">
